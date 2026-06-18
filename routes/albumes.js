@@ -70,17 +70,30 @@ router.get('/genero/:genero',(req,res)=>{
 /* GET /search/:text */
 router.get('/search/:text',(req,res)=>{
 
+    if(req.params.text.length < 3){
+
+        return res.status(400).json({
+            mensaje:"El texto debe tener mínimo 3 caracteres"
+        });
+
+    }
+
     const texto = `%${req.params.text}%`;
 
     db.all(
-        `SELECT * FROM albumes
+        `
+        SELECT * FROM albumes
         WHERE titulo LIKE ?
-        OR artista LIKE ?`,
+        OR artista LIKE ?
+        `,
         [texto,texto],
         (err,rows)=>{
+
             res.status(200).json(rows);
+
         }
     );
+
 });
 
 /* POST /albumes */
@@ -146,86 +159,67 @@ router.put('/album/:slug',(req,res)=>{
     const validacion = albumSchema.safeParse(req.body);
 
     if(!validacion.success){
-        return res.status(400).json(validacion.error);
+
+        return res.status(400).json(
+            validacion.error
+        );
     }
+
 
     const album = validacion.data;
-    const nuevoSlug = generarSlug(album.titulo);
 
-    if(!nuevoSlug){
-        return res.status(400).json({
-            mensaje:'El titulo no produce un slug valido'
-        });
-    }
 
     db.get(
-        'SELECT slug FROM albumes WHERE slug=?',
+        "SELECT * FROM albumes WHERE slug=?",
         [req.params.slug],
         (err,row)=>{
 
+
             if(!row){
+
                 return res.status(404).json({
-                    mensaje:'Album no encontrado'
+                    mensaje:"Album no encontrado"
                 });
+
             }
 
-            db.get(
-                'SELECT slug FROM albumes WHERE slug=?',
-                [nuevoSlug],
-                (slugErr, existingRow)=>{
 
-                    if(existingRow && existingRow.slug !== req.params.slug){
-                        return res.status(409).json({
-                            mensaje:'Slug ya existe'
-                        });
-                    }
+            db.run(
+                `
+                UPDATE albumes
+                SET titulo=?,
+                    artista=?,
+                    genero=?,
+                    anio=?,
+                    sello=?,
+                    pistas=?,
+                    imagen=?,
+                    resumen=?,
+                    descripcion=?
+                WHERE slug=?
+                `,
+                [
+                    album.titulo,
+                    album.artista,
+                    album.genero,
+                    album.anio,
+                    album.sello,
+                    album.pistas,
+                    album.imagen,
+                    album.resumen,
+                    album.descripcion,
+                    req.params.slug
+                ],
+                ()=>{
 
-                    db.run(
-                        `
-                        UPDATE albumes
-                        SET slug=?,
-                            titulo=?,
-                            artista=?,
-                            genero=?,
-                            anio=?,
-                            sello=?,
-                            pistas=?,
-                            imagen=?,
-                            resumen=?,
-                            descripcion=?
-                        WHERE slug=?
-                        `,
-                        [
-                            nuevoSlug,
-                            album.titulo,
-                            album.artista,
-                            album.genero,
-                            album.anio,
-                            album.sello,
-                            album.pistas,
-                            album.imagen,
-                            album.resumen,
-                            album.descripcion,
-                            req.params.slug
-                        ],
-                        function(){
+                    res.status(200).json(album);
 
-                            if(this.changes === 0){
-                                return res.status(404).json({
-                                    mensaje:'Album no encontrado'
-                                });
-                            }
-
-                            res.status(200).json({
-                                ...album,
-                                slug: nuevoSlug
-                            });
-                        }
-                    );
                 }
             );
+
         }
     );
+
 });
 
 /* DELETE /album/:slug */
