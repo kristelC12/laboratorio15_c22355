@@ -31,12 +31,19 @@ app.get('/',(req,res)=>{
 
 app.use('/', require('./routes/albumes'));
 
-app.listen(
-    process.env.PORT,
-    process.env.HOST,
-    ()=>{
-        console.log(
-            `Servidor ejecutandose en http://${process.env.HOST}:${process.env.PORT}`
-        );
-    }
-);
+if(require.main === module){
+
+    app.listen(
+        process.env.PORT,
+        process.env.HOST,
+        ()=>{
+            console.log(
+                `Servidor ejecutandose en http://${process.env.HOST}:${process.env.PORT}`
+            );
+        }
+    );
+
+}
+
+
+module.exports = app;
